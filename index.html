@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Combiner</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    label {
+      margin-bottom: 5px;
+      display: block;
+      font-weight: bold;
+    }
+    input[type="file"] {
+      margin-bottom: 20px;
+      width: 100%;
+    }
+    canvas {
+      display: block;
+      margin: 20px 0;
+      border: 1px solid #ccc;
+    }
+    button {
+      display: block;
+      width: 100%;
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px;
+      border: none;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #888;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Image Combiner</h1>
+  
+  <label for="bgImage">Upload Background Image:</label>
+  <input type="file" id="bgImage" accept="image/*">
+
+  <label for="overlayImage">Upload Overlay Image:</label>
+  <input type="file" id="overlayImage" accept="image/*">
+
+  <canvas id="canvas"></canvas>
+
+  <button id="downloadBtn" disabled>Download Combined Image</button>
+
+  <script>
+    const bgImageInput = document.getElementById('bgImage');
+    const overlayImageInput = document.getElementById('overlayImage');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    let bgImage = null;
+    let overlayImage = null;
+
+    bgImageInput.addEventListener('change', handleBgImageUpload);
+    overlayImageInput.addEventListener('change', handleOverlayImageUpload);
+    downloadBtn.addEventListener('click', handleDownload);
+
+    function handleBgImageUpload(event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        bgImage = new Image();
+        bgImage.src = e.target.result;
+        bgImage.onload = drawCanvas;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function handleOverlayImageUpload(event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        overlayImage = new Image();
+        overlayImage.src = e.target.result;
+        overlayImage.onload = drawCanvas;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function drawCanvas() {
+      if (bgImage && overlayImage) {
+        // Set canvas size to match background image
+        canvas.width = bgImage.width;
+        canvas.height = bgImage.height;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Draw background image
+        ctx.drawImage(bgImage, 0, 0);
+        // Draw overlay image (top-left corner, 1/4 size)
+        ctx.drawImage(overlayImage, 0, 0, bgImage.width / 4, bgImage.height / 4);
+        downloadBtn.disabled = false;
+      }
+    }
+
+    function handleDownload() {
+      const image = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = image;
+      link.download = 'combined_image.png';
+      link.click();
+    }
+  </script>
+
+</body>
+</html>
