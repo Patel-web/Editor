@@ -1,0 +1,139 @@
+import React, { useState, useRef, useEffect } from 'react';
+
+const ImageCombiner = () => {
+  const [bgImage, setBgImage] = useState(null);
+  const [overlayImage, setOverlayImage] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [overlayPosition, setOverlayPosition] = useState({ x: 0, y: 0 });
+  const [overlaySize, setOverlaySize] = useState({ width: 100, height: 100 });
+  const canvasRef = useRef(null);
+  const overlayRef = useRef(null);
+
+  const handleBgImageUpload = (e) => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setBgImage(event.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleOverlayImageUpload = (e) => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setOverlayImage(event.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setOverlayPosition({ x, y });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleOverlayResize = (e) => {
+    const newSize = Math.max(50, e.target.value);
+    setOverlaySize({ width: newSize, height: newSize });
+  };
+
+  const handleDownload = () => {
+    const canvas = canvasRef.current;
+    const image = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = image;
+    link.download = 'combined_image.png';
+    link.click();
+  };
+
+  // Basic background removal by treating pure white as transparent
+  const removeWhiteBackground = (ctx, imageData) => {
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      if (r > 240 && g > 240 && b > 240) {
+        // Set transparent for near-white colors
+        data[i + 3] = 0;
+      }
+    }
+    ctx.putImageData(imageData, overlayPosition.x, overlayPosition.y);
+  };
+
+  useEffect(() => {
+    if (bgImage && overlayImage) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      const bg = new Image();
+      const overlay = new Image();
+
+      bg.onload = () => {
+        canvas.width = bg.width;
+        canvas.height = bg.height;
+        ctx.drawImage(bg, 0, 0);
+
+        overlay.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(bg, 0, 0);
+          ctx.drawImage(overlay, overlayPosition.x, overlayPosition.y, overlaySize.width, overlaySize.height);
+
+          // Apply background removal
+          const imageData = ctx.getImageData(overlayPosition.x, overlayPosition.y, overlaySize.width, overlaySize.height);
+          removeWhiteBackground(ctx, imageData);
+        };
+        overlay.src = overlayImage;
+      };
+      bg.src = bgImage;
+    }
+  }, [bgImage, overlayImage, overlayPosition, overlaySize]);
+
+  return (
+    <div className="p-4 max-w-md mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Image Combiner</h1>
+      <div className="mb-4">
+        <label className="block mb-2">Upload Background Image:</label>
+        <input type="file" onChange={handleBgImageUpload} accept="image/*" className="w-full" />
+      </div>
+      <div className="mb-4">
+        <label className="block mb-2">Upload Overlay Image:</label>
+        <input type="file" onChange={handleOverlayImageUpload} accept="image/*" className="w-full" />
+      </div>
+      <div className="mb-4">
+        <label className="block mb-2">Resize Overlay Image (width & height):</label>
+        <input
+          type="range"
+          min="50"
+          max="500"
+          value={overlaySize.width}
+          onChange={handleOverlayResize}
+          className="w-full"
+        />
+      </div>
+      <canvas
+        ref={canvasRef}
+        className="border border-gray-300 mb-4"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+      ></canvas>
+      <button onClick={handleDownload} className="bg-blue-500 text-white px-4 py-2 rounded" disabled={!bgImage || !overlayImage}>
+        Download Combined Image
+      </button>
+    </div>
+  );
+};
+
+export default ImageCombiner;
